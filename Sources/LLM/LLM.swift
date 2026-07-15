@@ -1304,6 +1304,8 @@ open class LLM: ObservableObject {
         var modelParams = llama_model_default_params()
         #if targetEnvironment(simulator)
         modelParams.n_gpu_layers = 0
+        #else
+        modelParams.n_gpu_layers = 999   // Metal-offload op device (Fieldnoter-fork; default llama = 0 = CPU)
         #endif
         guard let model = llama_model_load_from_file(self.path, modelParams) else {
             return nil
