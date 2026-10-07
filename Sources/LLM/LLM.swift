@@ -1,4 +1,5 @@
 import Foundation
+import os
 import llama
 @_exported import LLMMacros
 
@@ -29,7 +30,23 @@ public typealias Chat = (role: Role, content: String)
 /// `LLMCore` handles low-level operations including token encoding/decoding,
 /// context management, and inference. It ensures thread safety by using Swift's
 /// actor isolation.
+/// Stopverzoek dat niet op de actor hoeft te wachten (Fieldnoter-fork, crash-audit 07-10-2026).
+///
+/// `stop()` zette voorheen alleen een Task op de rij van `LLMCore`, maar de generatielus draait
+/// zelf op die actor zonder ooit te wachten; het verzoek kwam dus pas aan als de generatie al klaar
+/// was. Gevolgen in de app: een samenvatting in de achtergrond bleef GPU-werk aanbieden tot iOS dat
+/// weigerde en llama.cpp het proces afbrak, en de lengterem per deel werkte nooit. Dit vlaggetje
+/// wordt direct gezet en in de lus en via llama's abort-callback (tussen deelbatches) gelezen.
+public final class StopSignal: @unchecked Sendable {
+    private let lock = OSAllocatedUnfairLock(initialState: false)
+    public init() {}
+    public var isSet: Bool { lock.withLock { $0 } }
+    public func set(_ value: Bool) { lock.withLock { $0 = value } }
+}
+
 public actor LLMCore {
+    /// Zie `StopSignal`. Nonisolated, zodat `LLM.stop()` hem zonder wachten kan zetten.
+    public nonisolated let stopSignal = StopSignal()
     private let model: Model
     private let vocab: Vocab
     private var context: OpaquePointer
@@ -141,6 +158,12 @@ public actor LLMCore {
             throw LLMError.contextCreationFailed
         }
         self.context = context
+        // Een lange prompt gaat in deelbatches naar de GPU; llama vraagt tussendoor deze callback
+        // of hij moet stoppen. Zo komt een stop ook midden in het verwerken van de prompt aan.
+        llama_set_abort_callback(context, { data in
+            guard let data else { return false }
+            return Unmanaged<StopSignal>.fromOpaque(data).takeUnretainedValue().isSet
+        }, Unmanaged.passUnretained(stopSignal).toOpaque())
         
         self.batch = llama_batch_init(Int32(maxTokenCount), 0, 1)
         
@@ -216,6 +239,7 @@ public actor LLMCore {
         
         let initialCount = tokens.count
         guard maxTokenCount > initialCount + Int(currentTokenCount) else { return false }
+        stopSignal.set(false)   // nieuwe generatie: een eerder stopverzoek geldt niet meer
         
         clearBatch()
         for (i, token) in tokens.enumerated() {
@@ -245,7 +269,7 @@ public actor LLMCore {
     }
     
     func predictNextToken(excluding: [Token] = []) -> Token {
-        guard shouldContinuePredicting, currentTokenCount < Int32(maxTokenCount) else {
+        guard shouldContinuePredicting, !stopSignal.isSet, currentTokenCount < Int32(maxTokenCount) else {
             return endToken
         }
         
@@ -398,10 +422,12 @@ public actor LLMCore {
                 pendingText.removeFirst(overflowLength)
             }
             
-            while shouldContinuePredicting && currentTokenCount < Int32(maxTokenCount) {
+            while shouldContinuePredicting && !stopSignal.isSet && currentTokenCount < Int32(maxTokenCount) {
                 let excludedTokens = shouldGuaranteeOutput ? [endToken] : []
                 let token = predictNextToken(excluding: excludedTokens)
                 shouldGuaranteeOutput = false
+                // Gestopt: niets meer naar de GPU sturen, ook geen afsluitende denk-tokens.
+                if stopSignal.isSet { break }
                 
                 let reachedEndOfGeneration = token == endToken
                 
@@ -1041,7 +1067,7 @@ public actor LLMCore {
     }
     
     private func sampleNextToken(from allowedTokens: Set<Token>) -> Token {
-        guard shouldContinuePredicting, currentTokenCount < Int32(maxTokenCount) else {
+        guard shouldContinuePredicting, !stopSignal.isSet, currentTokenCount < Int32(maxTokenCount) else {
             return endToken
         }
         guard let sampler, !allowedTokens.isEmpty else { return endToken }
@@ -1456,6 +1482,7 @@ open class LLM: ObservableObject {
     }
     
     public func stop() {
+        core.stopSignal.set(true)   // direct, zonder op de actor te wachten (zie StopSignal)
         Task { await core.stopGeneration() }
     }
     
