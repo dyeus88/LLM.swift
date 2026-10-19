@@ -47,6 +47,10 @@ public final class StopSignal: @unchecked Sendable {
 public actor LLMCore {
     /// Zie `StopSignal`. Nonisolated, zodat `LLM.stop()` hem zonder wachten kan zetten.
     public nonisolated let stopSignal = StopSignal()
+    /// Compacte KV-cache (8-bit in plaats van 16-bit, met flash attention). Halveert ongeveer het
+    /// werkgeheugen van de context; voor toestellen met weinig geheugen (Fieldnoter, 6 GB-iPhones).
+    /// Zetten vóór het laden van een model.
+    public nonisolated(unsafe) static var compactKVCache = false
     private let model: Model
     private let vocab: Vocab
     private var context: OpaquePointer
@@ -152,6 +156,11 @@ public actor LLMCore {
         contextParams.n_threads = processorCount
         contextParams.n_threads_batch = processorCount
         contextParams.embeddings = true
+        if LLMCore.compactKVCache {
+            contextParams.type_k = GGML_TYPE_Q8_0
+            contextParams.type_v = GGML_TYPE_Q8_0
+            contextParams.flash_attn_type = LLAMA_FLASH_ATTN_TYPE_ENABLED   // nodig voor een gequantiseerde V-cache
+        }
         self.params = contextParams
         
         guard let context = llama_init_from_model(model, params) else {
