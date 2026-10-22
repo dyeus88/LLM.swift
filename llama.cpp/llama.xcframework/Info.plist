@@ -7,8 +7,23 @@
 		<dict>
 			<key>BinaryPath</key>
 			<string>llama.framework/llama</string>
-			<key>DebugSymbolsPath</key>
-			<string>dSYMs</string>
+			<key>LibraryIdentifier</key>
+			<string>tvos-arm64_x86_64-simulator</string>
+			<key>LibraryPath</key>
+			<string>llama.framework</string>
+			<key>SupportedArchitectures</key>
+			<array>
+				<string>arm64</string>
+				<string>x86_64</string>
+			</array>
+			<key>SupportedPlatform</key>
+			<string>tvos</string>
+			<key>SupportedPlatformVariant</key>
+			<string>simulator</string>
+		</dict>
+		<dict>
+			<key>BinaryPath</key>
+			<string>llama.framework/llama</string>
 			<key>LibraryIdentifier</key>
 			<string>ios-arm64_x86_64-simulator</string>
 			<key>LibraryPath</key>
@@ -26,8 +41,6 @@
 		<dict>
 			<key>BinaryPath</key>
 			<string>llama.framework/Versions/A/llama</string>
-			<key>DebugSymbolsPath</key>
-			<string>dSYMs</string>
 			<key>LibraryIdentifier</key>
 			<string>macos-arm64_x86_64</string>
 			<key>LibraryPath</key>
@@ -43,8 +56,6 @@
 		<dict>
 			<key>BinaryPath</key>
 			<string>llama.framework/llama</string>
-			<key>DebugSymbolsPath</key>
-			<string>dSYMs</string>
 			<key>LibraryIdentifier</key>
 			<string>xros-arm64_x86_64-simulator</string>
 			<key>LibraryPath</key>
@@ -62,24 +73,6 @@
 		<dict>
 			<key>BinaryPath</key>
 			<string>llama.framework/llama</string>
-			<key>DebugSymbolsPath</key>
-			<string>dSYMs</string>
-			<key>LibraryIdentifier</key>
-			<string>tvos-arm64</string>
-			<key>LibraryPath</key>
-			<string>llama.framework</string>
-			<key>SupportedArchitectures</key>
-			<array>
-				<string>arm64</string>
-			</array>
-			<key>SupportedPlatform</key>
-			<string>tvos</string>
-		</dict>
-		<dict>
-			<key>BinaryPath</key>
-			<string>llama.framework/llama</string>
-			<key>DebugSymbolsPath</key>
-			<string>dSYMs</string>
 			<key>LibraryIdentifier</key>
 			<string>xros-arm64</string>
 			<key>LibraryPath</key>
@@ -94,8 +87,6 @@
 		<dict>
 			<key>BinaryPath</key>
 			<string>llama.framework/llama</string>
-			<key>DebugSymbolsPath</key>
-			<string>dSYMs</string>
 			<key>LibraryIdentifier</key>
 			<string>ios-arm64</string>
 			<key>LibraryPath</key>
@@ -110,21 +101,16 @@
 		<dict>
 			<key>BinaryPath</key>
 			<string>llama.framework/llama</string>
-			<key>DebugSymbolsPath</key>
-			<string>dSYMs</string>
 			<key>LibraryIdentifier</key>
-			<string>tvos-arm64_x86_64-simulator</string>
+			<string>tvos-arm64</string>
 			<key>LibraryPath</key>
 			<string>llama.framework</string>
 			<key>SupportedArchitectures</key>
 			<array>
 				<string>arm64</string>
-				<string>x86_64</string>
 			</array>
 			<key>SupportedPlatform</key>
 			<string>tvos</string>
-			<key>SupportedPlatformVariant</key>
-			<string>simulator</string>
 		</dict>
 	</array>
 	<key>CFBundlePackageType</key>

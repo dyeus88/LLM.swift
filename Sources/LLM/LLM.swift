@@ -155,7 +155,10 @@ public actor LLMCore {
         contextParams.n_batch = contextParams.n_ctx
         contextParams.n_threads = processorCount
         contextParams.n_threads_batch = processorCount
-        contextParams.embeddings = true
+        // Fieldnoter (22-10): uit. Aan laat llama.cpp per token van de prompt een volledige rij logits
+        // bewaren (n_tokens x n_vocab x 4 bytes): bij Qwen3.5 (248k woorden) en 5.600 tokens 5,6 GB,
+        // jetsam op de iPhone. Embeddings zelf zet llama_set_embeddings hieronder per aanroep aan.
+        contextParams.embeddings = false
         if LLMCore.compactKVCache {
             contextParams.type_k = GGML_TYPE_Q8_0
             contextParams.type_v = GGML_TYPE_Q8_0
@@ -347,8 +350,10 @@ public actor LLMCore {
         currentTokenCount = 0
         tokenBuffer.removeAll()
         shouldContinuePredicting = false
-        // Clear all sequences to ensure clean state
-        llama_memory_seq_rm(llama_get_memory(context), -1, -1, -1)
+        // Fieldnoter (22-10): alles leegmaken in plaats van seq_rm. Bij een hybride geheugen (Qwen3.5:
+        // deels lineaire lagen) laat seq_rm de lineaire toestand staan; de volgende decode brak dan
+        // af in llama_memory_recurrent::find_slot (SIGABRT op de iPhone, tweede deel).
+        llama_memory_clear(llama_get_memory(context), true)
     }
     
     func generateResponseStream(from input: String, thinking: ThinkingMode = .none) -> AsyncStream<String> {
